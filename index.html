@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주기율표 시뮬레이터</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #ffffff;
+    font-family: 'Nanum Gothic', 'Malgun Gothic', sans-serif;
+    color: #111;
+    padding: 32px 24px;
+  }
+  h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; color: #111; }
+  .subtitle { font-size: 12px; color: #666; margin-bottom: 20px; }
+
+  .controls {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .ctrl-label { font-size: 13px; font-weight: 700; color: #333; }
+  .ctrl-btn {
+    padding: 5px 16px; font-size: 13px; font-weight: 700;
+    border: 2px solid #555; background: #fff; color: #333;
+    border-radius: 4px; cursor: pointer; font-family: inherit;
+  }
+  .ctrl-btn:hover { background: #f0f0f0; }
+  .ctrl-btn.active { background: #111; color: #fff; border-color: #111; }
+  .action-btn {
+    padding: 5px 14px; font-size: 13px; font-weight: 700;
+    border: 2px solid #aaa; background: #fff; color: #555;
+    border-radius: 4px; cursor: pointer; font-family: inherit;
+  }
+  .action-btn:hover { background: #f5f5f5; }
+  .divider { width: 1px; height: 24px; background: #ccc; margin: 0 2px; }
+
+  .sym-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .sym-label { font-size: 13px; font-weight: 700; color: #333; }
+  .sym-btn {
+    width: 36px; height: 36px;
+    font-size: 14px; font-weight: 700;
+    border: 2px solid #555; background: #fff; color: #333;
+    border-radius: 4px; cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sym-btn:hover { background: #f0f0f0; }
+  .sym-btn.selected { background: #111; color: #fff; border-color: #111; }
+  .sym-mode-hint { font-size: 12px; color: #888; margin-left: 4px; }
+
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: separate; border-spacing: 5px; }
+
+  /* 대각선 헤더 */
+  .corner-cell {
+    position: relative;
+    width: 68px; height: 62px;
+    border: 2px solid #111; border-radius: 3px;
+    background: #fff; vertical-align: middle; padding: 0;
+  }
+  .corner-cell svg {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%; pointer-events: none;
+  }
+  .corner-cell .lbl-jok {
+    position: absolute; top: 5px; right: 7px;
+    font-size: 13px; font-weight: 700; color: #111; line-height: 1;
+    background: #fff; padding: 0 2px;
+  }
+  .corner-cell .lbl-jugi {
+    position: absolute; bottom: 5px; left: 7px;
+    font-size: 13px; font-weight: 700; color: #111; line-height: 1;
+    background: #fff; padding: 0 2px;
+  }
+
+  /* 족 헤더 (상단) */
+  th.col-head {
+    font-size: 13px; font-weight: 700; color: #111;
+    text-align: center;
+    min-width: 66px; height: 34px;
+    border: 2px solid #111; border-radius: 3px;
+    background: #fff;
+    vertical-align: middle;
+  }
+
+  /* 주기 헤더 (좌측) */
+  th.row-head {
+    font-size: 13px; font-weight: 700; color: #111;
+    text-align: center;
+    width: 68px; height: 66px;
+    border: 2px solid #111; border-radius: 3px;
+    background: #fff;
+    vertical-align: middle;
+    white-space: nowrap;
+    padding: 0 8px;
+  }
+
+  /* 원소 칸 */
+  .cell {
+    width: 66px; height: 66px; border-radius: 3px;
+    border: 2px solid #111; background: #fff;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: pointer; user-select: none;
+    position: relative;
+  }
+  .cell:hover { background: #f0f0f0; }
+
+  .cell .el-num  { font-size: 10px; font-weight: 700; color: #555; line-height: 1; margin-bottom: 2px; }
+  .cell .el-sym  { font-size: 20px; font-weight: 700; color: #000; line-height: 1.2; }
+  .cell .el-name { font-size: 9px;  font-weight: 500; color: #444; line-height: 1; margin-top: 2px; }
+
+  .cell .badge-big {
+    display: none;
+    font-size: 30px; font-weight: 700; color: #111; line-height: 1;
+  }
+  .cell.has-badge .el-num,
+  .cell.has-badge .el-sym,
+  .cell.has-badge .el-name { display: none; }
+  .cell.has-badge .badge-big { display: block; }
+
+  .cell.blank .el-num,
+  .cell.blank .el-sym,
+  .cell.blank .el-name,
+  .cell.blank .badge-big { visibility: hidden; }
+
+  .cell.empty { background: transparent; border: none; cursor: default; }
+
+  .hint { font-size: 11px; color: #888; margin-top: 12px; }
+
+  @media print {
+    body { padding: 16px; }
+    .controls, .sym-row, .hint { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<h1>주기율표</h1>
+<p class="subtitle">원소 칸을 클릭하면 빈칸 처리 또는 기호를 붙일 수 있습니다.</p>
+
+<div class="controls">
+  <span class="ctrl-label">주기 범위:</span>
+  <button class="ctrl-btn active" onclick="setRange(2)" id="btn2">1~2주기</button>
+  <button class="ctrl-btn" onclick="setRange(3)" id="btn3">1~3주기</button>
+  <button class="ctrl-btn" onclick="setRange(4)" id="btn4">1~4주기</button>
+  <div class="divider"></div>
+  <button class="action-btn" onclick="blankAll()">전체 빈칸</button>
+  <button class="action-btn" onclick="resetAll()">전체 초기화</button>
+</div>
+
+<div class="sym-row">
+  <span class="sym-label">기호 붙이기:</span>
+  <button class="sym-btn selected" id="symOff" onclick="selectSym(null)">✕</button>
+  <button class="sym-btn" id="symA" onclick="selectSym('A')">A</button>
+  <button class="sym-btn" id="symB" onclick="selectSym('B')">B</button>
+  <button class="sym-btn" id="symC" onclick="selectSym('C')">C</button>
+  <button class="sym-btn" id="symD" onclick="selectSym('D')">D</button>
+  <button class="sym-btn" id="symE" onclick="selectSym('E')">E</button>
+  <div class="divider"></div>
+  <button class="action-btn" onclick="clearSymbols()">기호 초기화</button>
+  <span class="sym-mode-hint" id="modeHint">클릭 시 빈칸 처리</span>
+</div>
+
+<div class="table-wrap">
+  <table id="pt"></table>
+</div>
+<p class="hint">※ 인쇄 시 컨트롤 버튼은 자동으로 숨겨집니다.</p>
+
+<script>
+var ELEMENTS = [
+  {n:1,  sym:"H",  name:"수소",     period:1, group:1},
+  {n:2,  sym:"He", name:"헬륨",     period:1, group:18},
+  {n:3,  sym:"Li", name:"리튬",     period:2, group:1},
+  {n:4,  sym:"Be", name:"베릴륨",   period:2, group:2},
+  {n:5,  sym:"B",  name:"붕소",     period:2, group:13},
+  {n:6,  sym:"C",  name:"탄소",     period:2, group:14},
+  {n:7,  sym:"N",  name:"질소",     period:2, group:15},
+  {n:8,  sym:"O",  name:"산소",     period:2, group:16},
+  {n:9,  sym:"F",  name:"플루오린", period:2, group:17},
+  {n:10, sym:"Ne", name:"네온",     period:2, group:18},
+  {n:11, sym:"Na", name:"나트륨",   period:3, group:1},
+  {n:12, sym:"Mg", name:"마그네슘", period:3, group:2},
+  {n:13, sym:"Al", name:"알루미늄", period:3, group:13},
+  {n:14, sym:"Si", name:"규소",     period:3, group:14},
+  {n:15, sym:"P",  name:"인",       period:3, group:15},
+  {n:16, sym:"S",  name:"황",       period:3, group:16},
+  {n:17, sym:"Cl", name:"염소",     period:3, group:17},
+  {n:18, sym:"Ar", name:"아르곤",   period:3, group:18},
+  {n:19, sym:"K",  name:"칼륨",     period:4, group:1},
+  {n:20, sym:"Ca", name:"칼슘",     period:4, group:2}
+];
+
+var GROUPS       = [1, 2, 13, 14, 15, 16, 17, 18];
+var GROUP_LABELS = ["1","2","13","14","15","16","17","18"];
+
+var maxPeriod = 2;
+var blanks    = {};
+var badges    = {};
+var activeSym = null;
+
+function setRange(max) {
+  maxPeriod = max;
+  [2,3,4].forEach(function(n){ document.getElementById("btn"+n).classList.remove("active"); });
+  document.getElementById("btn"+max).classList.add("active");
+  render();
+}
+
+function selectSym(s) {
+  activeSym = s;
+  ["symOff","symA","symB","symC","symD","symE"].forEach(function(id){
+    document.getElementById(id).classList.remove("selected");
+  });
+  document.getElementById(s ? "sym"+s : "symOff").classList.add("selected");
+  document.getElementById("modeHint").textContent =
+    s ? ('클릭 시 기호 "' + s + '" 붙이기') : "클릭 시 빈칸 처리";
+}
+
+function cellClick(n) {
+  if (activeSym === null) {
+    if (blanks[n]) delete blanks[n];
+    else           blanks[n] = true;
+  } else {
+    if (badges[n] === activeSym) delete badges[n];
+    else                          badges[n] = activeSym;
+  }
+  render();
+}
+
+function blankAll() {
+  ELEMENTS.forEach(function(el){ blanks[el.n] = true; });
+  render();
+}
+function resetAll()     { blanks = {}; badges = {}; render(); }
+function clearSymbols() { badges = {}; render(); }
+
+function render() {
+  var periods = [];
+  for (var i = 1; i <= maxPeriod; i++) periods.push(i);
+
+  var corner = '<td class="corner-cell">'
+    + '<svg viewBox="0 0 68 62" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">'
+    + '<line x1="3" y1="3" x2="65" y2="59" stroke="#111" stroke-width="1.5"/>'
+    + '</svg>'
+    + '<span class="lbl-jok">족</span>'
+    + '<span class="lbl-jugi">주기</span>'
+    + '</td>';
+
+  var html = "<thead><tr>" + corner;
+  GROUP_LABELS.forEach(function(l){
+    html += '<th class="col-head">' + l + '</th>';
+  });
+  html += "</tr></thead><tbody>";
+
+  periods.forEach(function(p) {
+    html += '<tr><th class="row-head">' + p + '</th>';
+    GROUPS.forEach(function(g) {
+      var el = null;
+      for (var i = 0; i < ELEMENTS.length; i++) {
+        if (ELEMENTS[i].period === p && ELEMENTS[i].group === g) { el = ELEMENTS[i]; break; }
+      }
+      if (!el) { html += '<td><div class="cell empty"></div></td>'; return; }
+
+      var isBlank  = !!blanks[el.n];
+      var badge    = badges[el.n] || "";
+      var hasBadge = badge !== "";
+      var nameShort = el.name.length > 4 ? el.name.slice(0,4) : el.name;
+
+      var cls = "cell";
+      if (isBlank)  cls += " blank";
+      if (hasBadge) cls += " has-badge";
+
+      html += '<td><div class="' + cls + '" onclick="cellClick(' + el.n + ')">'
+        + '<span class="badge-big">' + badge + '</span>'
+        + '<span class="el-num">'  + el.n      + '</span>'
+        + '<span class="el-sym">'  + el.sym    + '</span>'
+        + '<span class="el-name">' + nameShort + '</span>'
+        + '</div></td>';
+    });
+    html += "</tr>";
+  });
+
+  html += "</tbody>";
+  document.getElementById("pt").innerHTML = html;
+}
+
+render();
+</script>
+</body>
+</html>
